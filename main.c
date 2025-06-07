@@ -1,33 +1,32 @@
 #include "ipc_barrier.h"
 #include "utils.h"
 
-#include <time.h>
-
-
 #define GRAPH_ORDER 6
-ipc_barrier_t *send_barrier;
+
+ipc_barrier_t *barrier;
 
 void processor_task(int id) {
-    printf("Processor %d started.\n", id);
-        // Inizializza il seed del random solo nel figlio
-    srand(time(NULL) ^ (getpid() << 16));
-
-    int delay_ms = rand() % 3000; // Delay casuale tra 0 e 2999 ms
-
-    usleep(delay_ms * 1000); // Converti in microsecondi
-
-    wait_ipc_barrier(send_barrier); // Wait for the barrier
-    // Simulate some processing
-    sleep(3);
+    int pid = getpid();
+    printf("Processor %d started.\n", pid);
     
-    printf("Processor %d finished.\n", id);
+    srand(time(NULL) ^ (pid << 16));
+    usleep(rand() % 3000 * 1000); 
+
+    wait_ipc_barrier(barrier); // Wait for the barrier
+
+    srand(time(NULL) ^ (pid << 16));
+    usleep(rand() % 3000 * 1000); 
+
+    wait_ipc_barrier(barrier); // Wait for the coordinator to signal
+
+    printf("Processor %d finished.\n", pid);
 }
 
 int main(){
 
-    send_barrier = malloc(sizeof(ipc_barrier_t));
+    barrier = malloc(sizeof(ipc_barrier_t));
 
-    init_ipc_barrier(send_barrier, "barrier_sync", GRAPH_ORDER);
+    init_ipc_barrier(barrier, "sync_barrier", GRAPH_ORDER);
 
     pid_t pids[GRAPH_ORDER];
     
@@ -42,67 +41,17 @@ int main(){
         }
     }
 
-    sleep(2); // Ensure all child processes are ready before proceeding
 
+    wait_and_signal_ipc_barrier(barrier); // Coordinator waits for all processes to reach the barrier
     
-    //open the barrier FIFO for reading
-    printf("Main process waiting for all processors to reach the barrier...\n");
-    int fd_req, fd_resp;
-    int arrived = 0;
-    char buffer[256];
+    reset_ipc_barrier(barrier); // Reset the barrier for the next phase
 
-    // Apri FIFO di richiesta in lettura
-    fd_req = open("./tmp/barrier_sync_req", O_RDONLY);
-    if (fd_req < 0) {
-        perror("Coordinator: Failed to open request FIFO");
-        exit(EXIT_FAILURE);
-    }
-
-    message_t msg_req;
-    msg_req.pid = getpid();
-    // Conta i processi che arrivano
-    while (arrived < send_barrier->total) {
-        
-        ssize_t bytes_read = read(fd_req, &msg_req, sizeof(message_t));
-        if (bytes_read > 0) {
-            arrived++;
-            printf("Coordinator: Process %d/%d arrived at barrier. Message :%s, PID: %d \n", arrived, send_barrier->total, msg_req.text, msg_req.pid);
-        }
-    }
-
-    close(fd_req);
-
-  
+    wait_and_signal_ipc_barrier(barrier); // Coordinator signals all processes to continue
     
-    printf("Coordinator: All processes arrived, releasing barrier\n");
-
-    // Apri FIFO di risposta in scrittura
-    fd_resp = open("./tmp/barrier_sync_resp", O_WRONLY);
-    if (fd_resp < 0) {
-        perror("Coordinator: Failed to open response FIFO");
-        exit(EXIT_FAILURE);
-    }
+    for (int i = 0; i < GRAPH_ORDER; i++) waitpid(pids[i], NULL, 0); 
     
-    message_t release_msg;
-    release_msg.pid = getpid();
-    // Invia segnale di sblocco a tutti i processi
-    for (int i = 0; i < send_barrier->total; i++) {
-        if (write(fd_resp, &release_msg, sizeof(message_t)) < 0) {
-            perror("Coordinator: Failed to write release signal");
-            break;
-        }
-    }
-    
-    close(fd_resp);
 
-
-
-
-    for (int i = 0; i < GRAPH_ORDER; i++) {
-        waitpid(pids[i], NULL, 0); // Wait for each child process to finish
-    }
-
-    destroy_ipc_barrier(send_barrier); // Clean up the barrier
+    destroy_ipc_barrier(barrier); // Clean up the barrier
 
 
     return 0;

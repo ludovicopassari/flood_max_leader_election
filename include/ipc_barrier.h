@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define IPC_BARRIER_FIFO "./tmp/fifo/ipc_barrier_sync.fifo"
 
 typedef struct {
     char fifo_name[256];
@@ -21,5 +20,7 @@ void init_ipc_barrier(ipc_barrier_t *barrier, char* barrier_name, int total);
 void destroy_ipc_barrier(ipc_barrier_t *barrier);
 
 void wait_ipc_barrier(ipc_barrier_t *barrier);
-void signal_ipc_barrier(ipc_barrier_t *barrier);
+void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier);
+
+void reset_ipc_barrier(ipc_barrier_t *barrier);
 

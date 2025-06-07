@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "time.h": "c",
+        "ipc_barrier.h": "c",
+        "types.h": "c"
+    }
+}

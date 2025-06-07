@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
-
+#include <time.h>
 int create_fifo(char* fifo_name);
 int remove_existing_fifo(const char* fifo_name);
 
