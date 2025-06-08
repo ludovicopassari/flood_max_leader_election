@@ -7,8 +7,6 @@ ipc_barrier_t *barrier;
 void* processor_task(processor_state_t* w) {
 
     int pid = getpid();
-    //printf("Processor %d started.\n", pid);
-
     int* out_neighbors = NULL;
     int* in_neighbors = NULL;
 
@@ -19,26 +17,20 @@ void* processor_task(processor_state_t* w) {
     get_neighbors(w->my_id, &out_neighbors, &in_neighbors, &out_neighbors_count, &in_neighbors_count);
 
     //init edges
-    for (int i = 0; i < out_neighbors_count; i++){
-        
+    for (int i = 0; i < out_neighbors_count; i++){  
         w->out_edges[i].source_id = w->my_id;
         w->out_edges[i].target_id = out_neighbors[i];
         snprintf(w->out_edges[i].fifo_path, sizeof(w->out_edges[i].fifo_path), "%s/%d_to_%d.fifo", BASE_FIFO_DIR, w->my_id, out_neighbors[i]);
-
     }
 
     for (int i = 0; i < in_neighbors_count; i++){
-        
         w->in_edges[i].source_id = in_neighbors[i];
         w->in_edges[i].target_id = w->my_id;
         snprintf(w->in_edges[i].fifo_path, sizeof(w->in_edges[i].fifo_path), "%s/%d_to_%d.fifo", BASE_FIFO_DIR, in_neighbors[i], w->my_id);
     }
 
-
     // open to read FIFOs for in neighbors
     for (int i = 0; i < in_neighbors_count; i++) {
-        //char fifo_name[256];
-        //snprintf(fifo_name, sizeof(fifo_name), "%s/%d_to_%d.fifo", BASE_FIFO_DIR, in_neighbors[i], w->my_id);
         w->in_edges[i].fd = open(w->in_edges[i].fifo_path, O_RDONLY | O_NONBLOCK);
         if (w->in_edges[i].fd < 0) {
             perror("Failed to open FIFO for reading");
@@ -49,21 +41,16 @@ void* processor_task(processor_state_t* w) {
 
     // open to write FIFOs for out neighbors
     for (int i = 0; i < out_neighbors_count; i++) {
-        //char fifo_name[256];
-        //snprintf(fifo_name, sizeof(fifo_name), "%s/%d_to_%d.fifo",BASE_FIFO_DIR ,w->my_id, out_neighbors[i]);
         w->out_edges[i].fd = open(w->out_edges[i].fifo_path, O_WRONLY | O_NONBLOCK);
         if (w->out_edges[i].fd < 0) {
             perror("Failed to open FIFO for writing");
         }
     }
 
-    //message_t start_condition_msg;
-    //wait_ipc_barrier(barrier,&start_condition_msg); // Wait for the barrier to ensure coordinator that all worker have fifos opened.
-    //w->round = atoi(start_condition_msg.text);  
+    while (w->round < graph_diam + 2){ 
 
-    while (1)
-    {   
-        // print massege to describe fase
+        
+
         //printf("Processor %d is wating for round number\n", w->my_id);
         message_t start_condition_msg;
         wait_ipc_barrier(barrier,&start_condition_msg); // Wait for the barrier to ensure coordinator that all worker have fifos opened.
@@ -71,13 +58,13 @@ void* processor_task(processor_state_t* w) {
 
         printf("State of processor %d : my_id: %d, max_id: %d, leader: %d, round: %d\n", w->my_id, w->my_id, w->max_id, w->leader, w->round);
 
+
         // send messages to out neighbors
         for (int i = 0; i < out_neighbors_count; i++) {
             int *msg_snd = msg(w, i); // get message to send
             if (write(w->out_edges[i].fd, msg_snd, sizeof(msg)) < 0) {
                 perror("Failed to write to FIFO");
             }
-
         }
 
         //printf("Processor %d is wating for all processor writes\n", w->my_id);
@@ -95,7 +82,6 @@ void* processor_task(processor_state_t* w) {
                 perror("Failed to read from FIFO");
             }
         }
-
 
         //printf("Processor %d is wating for all processor reads\n", w->my_id);
         wait_ipc_barrier(barrier,NULL); // wait for the barrier to ensure all workers have recived their messages
@@ -149,12 +135,11 @@ int main(){
     int round = 0;
 
     message_t release_msg;
-    while (round < 6) {
+    while (round < graph_diam+2) {
         printf("\n");
-        memset(release_msg.text, 0, sizeof(release_msg.text)); // Clear the buffer
+        memset(release_msg.text, 0, sizeof(release_msg.text)); 
         sprintf(release_msg.text, "%d", round++);
         wait_and_signal_ipc_barrier(barrier, &release_msg);
-        
         
         reset_ipc_barrier(barrier);
 
@@ -171,7 +156,6 @@ int main(){
 
     for (int i = 0; i < GRAPH_ORDER; i++) waitpid(pids[i], NULL, 0); 
     
-
     destroy_ipc_barrier(barrier); // Clean up the barrier
 
     if (remove_all_fifos() < 0) {
