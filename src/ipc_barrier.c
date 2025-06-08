@@ -114,7 +114,7 @@ void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier, message_t *release_msg)
     }
     //close(fd_req);
 
-    printf("Coordinator: All %d processes have arrived at the barrier.\n", barrier->total);
+
     // Apri FIFO di risposta in scrittura
     fd_resp = open(barrier->response_fifo, O_WRONLY);
     if (fd_resp < 0) {
@@ -130,7 +130,7 @@ void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier, message_t *release_msg)
             exit(EXIT_FAILURE);
         }
     }
-    //message_t release_msg;
+
     release_msg->pid = getpid();
     // Invia segnale di sblocco a tutti i processi
     for (int i = 0; i < barrier->total; i++) {

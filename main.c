@@ -7,7 +7,7 @@ ipc_barrier_t *barrier;
 void* processor_task(processor_state_t* w) {
 
     int pid = getpid();
-    printf("Processor %d started.\n", pid);
+    //printf("Processor %d started.\n", pid);
 
     int* out_neighbors = NULL;
     int* in_neighbors = NULL;
@@ -63,13 +63,14 @@ void* processor_task(processor_state_t* w) {
 
     while (1)
     {   
+        // print massege to describe fase
+        //printf("Processor %d is wating for round number\n", w->my_id);
         message_t start_condition_msg;
         wait_ipc_barrier(barrier,&start_condition_msg); // Wait for the barrier to ensure coordinator that all worker have fifos opened.
         w->round = atoi(start_condition_msg.text);
 
-        // print processor state
-        printf("Processor %d : my_id: %d, max_id: %d, leader: %d, round: %d\n", w->my_id, w->my_id, w->max_id, w->leader, w->round);
-        
+        printf("State of processor %d : my_id: %d, max_id: %d, leader: %d, round: %d\n", w->my_id, w->my_id, w->max_id, w->leader, w->round);
+
         // send messages to out neighbors
         for (int i = 0; i < out_neighbors_count; i++) {
             int *msg_snd = msg(w, i); // get message to send
@@ -79,6 +80,7 @@ void* processor_task(processor_state_t* w) {
 
         }
 
+        //printf("Processor %d is wating for all processor writes\n", w->my_id);
         wait_ipc_barrier(barrier, NULL); // wait for the barrier to ensure all workers have sent their messages
 
         // receive messages from in neighbors
@@ -95,17 +97,12 @@ void* processor_task(processor_state_t* w) {
         }
 
 
-        //message_t update_round;
+        //printf("Processor %d is wating for all processor reads\n", w->my_id);
         wait_ipc_barrier(barrier,NULL); // wait for the barrier to ensure all workers have recived their messages
-        //w->round = atoi(update_round.text);
 
         processor_state_t *new_w = (processor_state_t*) stf(w, rcv_tokens , token_count);
         w= new_w; // update processor state with new state
-
-        
     }
-    
-
     
     printf("Processor %d finished.\n", pid);
 
@@ -117,6 +114,7 @@ int main(){
     processor_state_t* processors[GRAPH_ORDER];
     // compute the graph diameter
     graph_diam = compute_diameter();
+    printf("Graph diameter : %d \n", graph_diam);
 
     // create processor states
     for(int i = 0; i < 6; i++) {
@@ -151,13 +149,8 @@ int main(){
     int round = 0;
 
     message_t release_msg;
-    //sprintf(release_msg.text, "%d", round);  // buffer ora contiene "42"
-    //wait_and_signal_ipc_barrier(barrier, &release_msg); // Coordinator waits for all processes to reach the barrier
-
     while (round < 6) {
-
-        //printf("Coordinator: Round %d\n", round);
-
+        printf("\n");
         memset(release_msg.text, 0, sizeof(release_msg.text)); // Clear the buffer
         sprintf(release_msg.text, "%d", round++);
         wait_and_signal_ipc_barrier(barrier, &release_msg);
@@ -171,19 +164,11 @@ int main(){
 
         wait_and_signal_ipc_barrier(barrier,NULL);
         
-        reset_ipc_barrier(barrier);
-        //message_t update_round;
-        //snprintf(update_round.text, sizeof(update_round.text), "%d", round++); // Increment round and prepare message
-        //wait_and_signal_ipc_barrier(barrier,NULL); // Coordinator waits for all processes to recive their messages
+        reset_ipc_barrier(barrier); 
         
+        printf("===================================================================\n");
     }
 
-    
-
-
-    
-
-    
     for (int i = 0; i < GRAPH_ORDER; i++) waitpid(pids[i], NULL, 0); 
     
 
