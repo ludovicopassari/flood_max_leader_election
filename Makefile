@@ -6,8 +6,8 @@ OBJDIR = obj
 BINDIR = bin
 
 # Sorgenti e oggetti (scritti a mano)
-SRCS = main.c src/ipc_barrier.c 
-OBJS = $(OBJDIR)/main.o $(OBJDIR)/ipc_barrier.o $(OBJDIR)/utils.o 
+SRCS = main.c src/ipc_barrier.c src/sync_network.c
+OBJS = $(OBJDIR)/main.o $(OBJDIR)/ipc_barrier.o $(OBJDIR)/utils.o $(OBJDIR)/sync_network.o 
 
 # Nome eseguibile
 TARGET = $(BINDIR)/leader_election
@@ -29,6 +29,8 @@ $(OBJDIR)/ipc_barrier.o: src/ipc_barrier.c | $(OBJDIR)
 $(OBJDIR)/utils.o: src/utils.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJDIR)/sync_network.o: src/sync_network.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Creazione cartelle se servono
 $(OBJDIR):

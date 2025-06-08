@@ -2,6 +2,8 @@
 /tmp/
 /obj/
 
+.vs/
+.vscode/
 
 *.pdf
 *.py

@@ -32,7 +32,7 @@ void init_ipc_barrier(ipc_barrier_t *barrier, char* barrier_name, int total) {
     }
 }
 
-void wait_ipc_barrier(ipc_barrier_t *barrier) {
+void wait_ipc_barrier(ipc_barrier_t *barrier, message_t *msg_rel) {
     int fd_req, fd_resp;
     int current_pid = getpid();
 
@@ -55,7 +55,7 @@ void wait_ipc_barrier(ipc_barrier_t *barrier) {
         exit(EXIT_FAILURE);
     }
 
-    close(fd_req);
+    //close(fd_req);
 
 
     fd_resp = open(barrier->response_fifo, O_RDONLY);
@@ -64,14 +64,22 @@ void wait_ipc_barrier(ipc_barrier_t *barrier) {
         exit(EXIT_FAILURE);
     }
 
-    message_t msg_resp;
+    if(msg_rel == NULL) {
+        msg_rel = malloc(sizeof(message_t));
+        if (msg_rel == NULL) {
+            perror("Failed to allocate memory for release message");
+            close(fd_resp);
+            exit(EXIT_FAILURE);
+        }
+    }
+    memset(msg_rel, 0, sizeof(message_t)); // Inizializza il messaggio di rilascio
     // Attendi segnale di sblocco
-    if (read(fd_resp, &msg_resp, sizeof(message_t)) < 0) {
+    if (read(fd_resp, msg_rel, sizeof(message_t)) < 0) {
         perror("Failed to read from response FIFO");
         close(fd_resp);
         exit(EXIT_FAILURE);
     }
-    close(fd_resp);
+    //close(fd_resp);
 
 }
 
@@ -84,7 +92,7 @@ void destroy_ipc_barrier(ipc_barrier_t *barrier) {
     }
 }
 
-void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier) {
+void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier, message_t *release_msg) {
     int fd_req, fd_resp;
     int arrived = 0;
 
@@ -102,10 +110,9 @@ void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier) {
         ssize_t bytes_read = read(fd_req, &msg_req, sizeof(message_t));
         if (bytes_read > 0) {
             arrived++;
-            printf("Coordinator: Process %d/%d arrived at barrier. Message :%s, PID: %d \n", arrived, barrier->total, msg_req.text, msg_req.pid);
         }
     }
-    close(fd_req);
+    //close(fd_req);
 
     printf("Coordinator: All %d processes have arrived at the barrier.\n", barrier->total);
     // Apri FIFO di risposta in scrittura
@@ -115,11 +122,19 @@ void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier) {
         exit(EXIT_FAILURE);
     }
     
-    message_t release_msg;
-    release_msg.pid = getpid();
+    if (release_msg == NULL) {
+        release_msg = malloc(sizeof(message_t));
+        if (release_msg == NULL) {
+            perror("Coordinator: Failed to allocate memory for release message");
+            close(fd_resp);
+            exit(EXIT_FAILURE);
+        }
+    }
+    //message_t release_msg;
+    release_msg->pid = getpid();
     // Invia segnale di sblocco a tutti i processi
     for (int i = 0; i < barrier->total; i++) {
-        if (write(fd_resp, &release_msg, sizeof(message_t)) < 0) {
+        if (write(fd_resp, release_msg, sizeof(message_t)) < 0) {
             perror("Coordinator: Failed to write release signal");
             break;
         }
@@ -127,7 +142,7 @@ void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier) {
     
     usleep(500); // Converti in microsecondi
 
-    close(fd_resp);
+    //close(fd_resp);
 
 }
 

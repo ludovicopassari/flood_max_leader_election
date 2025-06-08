@@ -31,3 +31,4 @@ int remove_existing_fifo(const char* fifo_name) {
     }
     return 0;
 }
+

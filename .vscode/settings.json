@@ -2,6 +2,11 @@
     "files.associations": {
         "time.h": "c",
         "ipc_barrier.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "utils.h": "c",
+        "unistd.h": "c",
+        "fcntl.h": "c",
+        "stdlib.h": "c",
+        "stdio.h": "c"
     }
 }

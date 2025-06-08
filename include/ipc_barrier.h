@@ -1,3 +1,6 @@
+#ifndef IPC_BARRIER_H
+#define IPC_BARRIER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -19,8 +22,11 @@ typedef struct {
 void init_ipc_barrier(ipc_barrier_t *barrier, char* barrier_name, int total);
 void destroy_ipc_barrier(ipc_barrier_t *barrier);
 
-void wait_ipc_barrier(ipc_barrier_t *barrier);
-void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier);
 
+void wait_ipc_barrier(ipc_barrier_t *barrier, message_t *msg_rel);
+void wait_and_signal_ipc_barrier(ipc_barrier_t *barrier, message_t *release_msg);
 void reset_ipc_barrier(ipc_barrier_t *barrier);
 
+
+
+#endif
